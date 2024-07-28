@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -49,22 +50,20 @@ public class Main {
   }
 
   private static HttpRequest parseRequest(BufferedReader in) throws IOException {
-    List<String> requestData = readRequest(in);
+    List<String> requestData = getRequestMetaData(in);
     String path = requestData.get(0);
     String[] uriInfo = path.split(" ");
     Map<String, String> headers = findKnownHeaders(requestData);
-    return new HttpRequest(uriInfo[0], uriInfo[1], headers);
+    String body = readBody(in);
+    return new HttpRequest(uriInfo[0], uriInfo[1], headers, body);
   }
 
-  private static List<String> readRequest(BufferedReader in) throws IOException {
+  private static List<String> getRequestMetaData(BufferedReader in) throws IOException {
     List<String> requestData = new ArrayList<>();
     String inputLine;
-    while ((inputLine = in.readLine()) != null) {
+    while ((inputLine = in.readLine()) != null && !inputLine.isEmpty()) {
       System.out.println(inputLine);
       requestData.add(inputLine);
-      if (inputLine.isEmpty()) {
-        break;
-      }
     }
     return requestData;
   }
@@ -78,6 +77,16 @@ public class Main {
       }
     }
     return headers;
+  }
+
+  private static String readBody(BufferedReader in) throws IOException {
+    StringBuffer bodyBuffer = new StringBuffer();
+    while (in.ready()) {
+      bodyBuffer.append((char)in.read());
+    }
+    String body = bodyBuffer.toString();
+    System.out.println(body);
+    return bodyBuffer.toString();
   }
 
   private static void createResponse(PrintWriter out, HttpRequest httpRequest)
@@ -94,7 +103,7 @@ public class Main {
       out.println(
           "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + headerValue.length()
               + "\r\n\r\n" + headerValue);
-    } else if (httpRequest.uri.startsWith("/files/")) {
+    } else if ("GET".equals(httpRequest.httpMethod) && httpRequest.uri.startsWith("/files/")) {
       String fileName = httpRequest.uri.replace("/files/", "");
       File file = new File(directory, fileName);
       if (file.exists()) {
@@ -104,6 +113,17 @@ public class Main {
             + content.length() + "\r\n\r\n" + content);
       } else {
         out.println("HTTP/1.1 404 Not Found\r\n\r\n");
+      }
+    } else if (httpRequest.httpMethod.equals("POST") && httpRequest.uri.startsWith("/files/")) {
+      String fileName = httpRequest.uri.replace("/files/", "");
+      File file = new File(directory, fileName);
+      if (file.createNewFile()) {
+        try (FileWriter fileWriter = new FileWriter(file)) {
+          fileWriter.write(httpRequest.body);
+        } catch (IOException e) {
+          System.out.println("IOException: " + e.getMessage());
+        }
+        out.println("HTTP/1.1 201 Created\r\n\r\n");
       }
     } else {
       out.println("HTTP/1.1 404 Not Found\r\n\r\n");
@@ -115,11 +135,13 @@ public class Main {
     String httpMethod;
     String uri;
     Map<String, String> httpHeaders;
+    String body;
 
-    HttpRequest(String httpMethod, String uri, Map<String, String> httpHeaders) {
+    HttpRequest(String httpMethod, String uri, Map<String, String> httpHeaders, String body) {
       this.httpMethod = httpMethod;
       this.uri = uri;
       this.httpHeaders = httpHeaders;
+      this.body = body;
     }
 
   }
