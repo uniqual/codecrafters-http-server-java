@@ -9,10 +9,8 @@ import java.util.List;
 
 public class Main {
 
-  private static final String CRLF = "\r\n";
-
   public static void main(String[] args) {
-    Socket clientSocket = null;
+    Socket clientSocket;
     try (ServerSocket serverSocket = new ServerSocket(4221)) {
 
       serverSocket.setReuseAddress(true);
@@ -21,17 +19,23 @@ public class Main {
       BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       List<String> requestData = readRequest(in);
       String path = requestData.get(0);
+      String[] uriInfo = path.split(" ");
+      HttpRequest httpRequest = new HttpRequest(uriInfo[0], uriInfo[1]);
       PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-      writeResponseByPath(out, path);
+      writeResponseByPath(out, httpRequest);
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     }
   }
 
-  private static void writeResponseByPath(PrintWriter out, String path) {
-    switch (path) {
-      case "GET / HTTP/1.1" -> out.println("HTTP/1.1 200 OK\r\n\r\n");
-      default -> out.println("HTTP/1.1 404 Not Found\r\n\r\n");
+  private static void writeResponseByPath(PrintWriter out, HttpRequest httpRequest) {
+    if ("/".equals(httpRequest.uri)) {
+      out.println("HTTP/1.1 200 OK\r\n\r\n");
+    } else if (httpRequest.uri.startsWith("/echo/")) {
+      String pathVariable = httpRequest.uri.replace("/echo/", "");
+      out.println("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + pathVariable.length() + "\r\n\r\n" + pathVariable);
+    } else {
+      out.println("HTTP/1.1 404 Not Found\r\n\r\n");
     }
   }
 
@@ -47,4 +51,17 @@ public class Main {
     }
     return requestData;
   }
+
+  private static class HttpRequest {
+
+    String httpMethod;
+    String uri;
+
+    HttpRequest(String httpMethod, String uri) {
+      this.httpMethod = httpMethod;
+      this.uri = uri;
+    }
+
+  }
+
 }
