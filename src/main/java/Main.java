@@ -8,26 +8,27 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
 
   private static final String USER_AGENT_HEADER = "User-Agent";
+  private static final ExecutorService executor = Executors.newFixedThreadPool(10);
 
   public static void main(String[] args) {
-    Socket clientSocket;
     try (ServerSocket serverSocket = new ServerSocket(4221)) {
 
       serverSocket.setReuseAddress(true);
-      clientSocket = serverSocket.accept();
       while (true) {
-        Runnable runnable = () -> {
+        Socket clientSocket = serverSocket.accept();
+        executor.submit(() -> {
           try {
             handleRequest(clientSocket);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-        };
-        serverSocket.close();
+        });
       }
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
