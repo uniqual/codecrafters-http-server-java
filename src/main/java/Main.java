@@ -72,7 +72,7 @@ public class Main {
     } else if (httpRequest.uri.startsWith("/echo/")) {
       var pathVariable = httpRequest.uri.replace("/echo/", "");
       if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)
-          && httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).equals("gzip")) {
+          && httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).contains("gzip")) {
         out.println(
             "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\n\r\n");
       } else {
