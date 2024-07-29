@@ -70,16 +70,17 @@ public class Main {
     if ("/".equals(httpRequest.uri)) {
       out.println("HTTP/1.1 200 OK\r\n\r\n");
     } else if (httpRequest.uri.startsWith("/echo/")) {
-      if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)) {
-        if (httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).equals("gzip")) {
-          out.println(
-              "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\n\r\n");
-        }
+      var pathVariable = httpRequest.uri.replace("/echo/", "");
+      if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)
+          && httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).equals("gzip")) {
+        out.println(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\n\r\n");
+      } else {
+        out.println(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+                + pathVariable.length()
+                + "\r\n\r\n" + pathVariable);
       }
-      String pathVariable = httpRequest.uri.replace("/echo/", "");
-      out.println(
-          "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + pathVariable.length()
-              + "\r\n\r\n" + pathVariable);
     } else if (httpRequest.uri.startsWith("/user-agent")) {
       var headerValue = httpRequest.httpHeaders.get(USER_AGENT_HEADER);
       out.println(
@@ -143,9 +144,9 @@ public class Main {
     private Map<String, String> processHeaders(List<String> requestData) {
       Map<String, String> headersMap = new HashMap<>();
       for (int i = 2; i < requestData.size(); i++) {
-        String header = requestData.get(2);
-        String headerKey = header.split(" ")[0];
-        String headerValue = header.split(" ")[1];
+        String header = requestData.get(i);
+        String headerKey = header.split(": ")[0];
+        String headerValue = header.split(": ")[1];
         headersMap.put(headerKey, headerValue);
       }
       return headersMap;
@@ -154,7 +155,7 @@ public class Main {
     private String readBody(BufferedReader in) throws IOException {
       var bodyBuffer = new StringBuilder();
       while (in.ready()) {
-        bodyBuffer.append((char)in.read());
+        bodyBuffer.append((char) in.read());
       }
       var body = bodyBuffer.toString();
       System.out.println(body);
