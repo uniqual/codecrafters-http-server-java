@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -6,13 +7,16 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.zip.GZIPOutputStream;
 
 public class Main {
 
@@ -73,8 +77,11 @@ public class Main {
       var pathVariable = httpRequest.uri.replace("/echo/", "");
       if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)
           && httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).contains("gzip")) {
-        out.println(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\n\r\n");
+        byte[] gzipData = compressAsGzip(pathVariable);
+        var response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+            + gzipData.length
+            + "\r\n\r\n";
+        out.println(Arrays.toString(response.getBytes(StandardCharsets.UTF_8)).concat(Arrays.toString(gzipData)));
       } else {
         out.println(
             "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
@@ -111,6 +118,18 @@ public class Main {
     } else {
       out.println("HTTP/1.1 404 Not Found\r\n\r\n");
     }
+  }
+
+  private static byte[] compressAsGzip(String data) {
+    byte[] dataAsBytes = data.getBytes(StandardCharsets.UTF_8);
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(dataAsBytes.length);
+    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)){
+      gzipOutputStream.write(dataAsBytes);
+      return byteArrayOutputStream.toByteArray();
+    } catch (IOException exception) {
+      System.out.println(exception.getMessage());
+    }
+    return new byte[] {};
   }
 
   private static class HttpRequest {
