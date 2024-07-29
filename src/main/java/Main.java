@@ -17,7 +17,6 @@ import java.util.concurrent.Executors;
 public class Main {
 
   private static final String USER_AGENT_HEADER = "User-Agent";
-  private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final ExecutorService executor = Executors.newFixedThreadPool(10);
   private static String directory;
 
@@ -155,5 +154,4 @@ public class Main {
       return bodyBuffer.toString();
     }
   }
-
 }
