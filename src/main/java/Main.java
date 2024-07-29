@@ -5,13 +5,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,11 +76,14 @@ public class Main {
       if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)
           && httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).contains("gzip")) {
         byte[] gzipData = compressAsGzip(pathVariable);
-        var response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
-            + gzipData.length
-            + "\r\n\r\n";
+        var response =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
+                + gzipData.length
+                + "\r\n\r\n";
         out.write(response.getBytes(StandardCharsets.UTF_8));
         out.write(gzipData);
+        out.flush();
+        out.close();
       } else {
         String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
             + pathVariable.length()
@@ -103,8 +104,9 @@ public class Main {
       if (file.exists()) {
         byte[] fileContent = Files.readAllBytes(file.toPath());
         var content = new String(fileContent);
-        String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
-            + content.length() + "\r\n\r\n" + content;
+        String httpResponse =
+            "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                + content.length() + "\r\n\r\n" + content;
         out.write(httpResponse.getBytes());
       } else {
         out.write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
@@ -128,8 +130,9 @@ public class Main {
   private static byte[] compressAsGzip(String data) {
     byte[] dataAsBytes = data.getBytes(StandardCharsets.UTF_8);
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(dataAsBytes.length);
-    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)){
+    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
       gzipOutputStream.write(dataAsBytes);
+      gzipOutputStream.finish();
       return byteArrayOutputStream.toByteArray();
     } catch (IOException exception) {
       System.out.println(exception.getMessage());
