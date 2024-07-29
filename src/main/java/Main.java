@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 public class Main {
 
   private static final String USER_AGENT_HEADER = "User-Agent";
+  private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final ExecutorService executor = Executors.newFixedThreadPool(10);
   private static String directory;
 
@@ -51,11 +52,7 @@ public class Main {
 
   private static HttpRequest parseRequest(BufferedReader in) throws IOException {
     List<String> requestData = getRequestMetaData(in);
-    String path = requestData.get(0);
-    String[] uriInfo = path.split(" ");
-    Map<String, String> headers = findKnownHeaders(requestData);
-    String body = readBody(in);
-    return new HttpRequest(uriInfo[0], uriInfo[1], headers, body);
+    return new HttpRequest(requestData, in);
   }
 
   private static List<String> getRequestMetaData(BufferedReader in) throws IOException {
@@ -66,27 +63,6 @@ public class Main {
       requestData.add(inputLine);
     }
     return requestData;
-  }
-
-  private static Map<String, String> findKnownHeaders(List<String> requestData) {
-    Map<String, String> headers = new HashMap<>();
-    for (var data : requestData) {
-      if (data.startsWith(USER_AGENT_HEADER)) {
-        var headerValue = data.split(": ")[1];
-        headers.put(USER_AGENT_HEADER, headerValue);
-      }
-    }
-    return headers;
-  }
-
-  private static String readBody(BufferedReader in) throws IOException {
-    StringBuffer bodyBuffer = new StringBuffer();
-    while (in.ready()) {
-      bodyBuffer.append((char)in.read());
-    }
-    String body = bodyBuffer.toString();
-    System.out.println(body);
-    return bodyBuffer.toString();
   }
 
   private static void createResponse(PrintWriter out, HttpRequest httpRequest)
@@ -137,13 +113,47 @@ public class Main {
     Map<String, String> httpHeaders;
     String body;
 
-    HttpRequest(String httpMethod, String uri, Map<String, String> httpHeaders, String body) {
-      this.httpMethod = httpMethod;
-      this.uri = uri;
-      this.httpHeaders = httpHeaders;
-      this.body = body;
+    HttpRequest(List<String> requestMetaData, BufferedReader in) throws IOException {
+      this.httpMethod = getHttpMethod(requestMetaData);
+      this.uri = getUri(requestMetaData);
+      this.httpHeaders = processHeaders(requestMetaData);
+      this.body = readBody(in);
     }
 
+    private String getHttpMethod(List<String> requestData) {
+      if (!requestData.isEmpty()) {
+        return requestData.getFirst().split(" ")[0];
+      }
+      return "";
+    }
+
+    private String getUri(List<String> requestData) {
+      if (!requestData.isEmpty()) {
+        return requestData.getFirst().split(" ")[1];
+      }
+      return "";
+    }
+
+    private Map<String, String> processHeaders(List<String> requestData) {
+      Map<String, String> headersMap = new HashMap<>();
+      for (int i = 2; i < requestData.size(); i++) {
+        String header = requestData.get(2);
+        String headerKey = header.split(" ")[0];
+        String headerValue = header.split(" ")[1];
+        headersMap.put(headerKey, headerValue);
+      }
+      return headersMap;
+    }
+
+    private String readBody(BufferedReader in) throws IOException {
+      var bodyBuffer = new StringBuilder();
+      while (in.ready()) {
+        bodyBuffer.append((char)in.read());
+      }
+      var body = bodyBuffer.toString();
+      System.out.println(body);
+      return bodyBuffer.toString();
+    }
   }
 
 }
