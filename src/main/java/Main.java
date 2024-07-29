@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -50,8 +51,7 @@ public class Main {
   private static void handleRequest(Socket clientSocket) throws IOException {
     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
     HttpRequest httpRequest = parseRequest(in);
-    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-    createResponse(out, httpRequest);
+    createResponse(clientSocket.getOutputStream(), httpRequest);
   }
 
   private static HttpRequest parseRequest(BufferedReader in) throws IOException {
@@ -69,10 +69,10 @@ public class Main {
     return requestData;
   }
 
-  private static void createResponse(PrintWriter out, HttpRequest httpRequest)
+  private static void createResponse(OutputStream out, HttpRequest httpRequest)
       throws IOException {
     if ("/".equals(httpRequest.uri)) {
-      out.println("HTTP/1.1 200 OK\r\n\r\n");
+      out.write("HTTP/1.1 200 OK\r\n\r\n".getBytes(StandardCharsets.UTF_8));
     } else if (httpRequest.uri.startsWith("/echo/")) {
       var pathVariable = httpRequest.uri.replace("/echo/", "");
       if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)
@@ -81,28 +81,33 @@ public class Main {
         var response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: "
             + gzipData.length
             + "\r\n\r\n";
-        out.println(Arrays.toString(response.getBytes(StandardCharsets.UTF_8)).concat(Arrays.toString(gzipData)));
+        out.write(response.getBytes(StandardCharsets.UTF_8));
+        out.write(gzipData);
       } else {
-        out.println(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-                + pathVariable.length()
-                + "\r\n\r\n" + pathVariable);
+        String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+            + pathVariable.length()
+            + "\r\n\r\n" + pathVariable;
+        out.write(
+            httpResponse.getBytes(StandardCharsets.UTF_8));
       }
     } else if (httpRequest.uri.startsWith("/user-agent")) {
       var headerValue = httpRequest.httpHeaders.get(USER_AGENT_HEADER);
-      out.println(
+      String httpResponse =
           "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + headerValue.length()
-              + "\r\n\r\n" + headerValue);
+              + "\r\n\r\n" + headerValue;
+      out.write(
+          httpResponse.getBytes(StandardCharsets.UTF_8));
     } else if ("GET".equals(httpRequest.httpMethod) && httpRequest.uri.startsWith("/files/")) {
       String fileName = httpRequest.uri.replace("/files/", "");
       File file = new File(directory, fileName);
       if (file.exists()) {
         byte[] fileContent = Files.readAllBytes(file.toPath());
         var content = new String(fileContent);
-        out.println("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
-            + content.length() + "\r\n\r\n" + content);
+        String httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+            + content.length() + "\r\n\r\n" + content;
+        out.write(httpResponse.getBytes());
       } else {
-        out.println("HTTP/1.1 404 Not Found\r\n\r\n");
+        out.write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
       }
     } else if (httpRequest.httpMethod.equals("POST") && httpRequest.uri.startsWith("/files/")) {
       String fileName = httpRequest.uri.replace("/files/", "");
@@ -113,10 +118,10 @@ public class Main {
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
         }
-        out.println("HTTP/1.1 201 Created\r\n\r\n");
+        out.write("HTTP/1.1 201 Created\r\n\r\n".getBytes());
       }
     } else {
-      out.println("HTTP/1.1 404 Not Found\r\n\r\n");
+      out.write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
     }
   }
 
