@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 public class Main {
 
   private static final String USER_AGENT_HEADER = "User-Agent";
+  private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final ExecutorService executor = Executors.newFixedThreadPool(10);
   private static String directory;
 
@@ -69,6 +70,12 @@ public class Main {
     if ("/".equals(httpRequest.uri)) {
       out.println("HTTP/1.1 200 OK\r\n\r\n");
     } else if (httpRequest.uri.startsWith("/echo/")) {
+      if (httpRequest.httpHeaders.containsKey(ACCEPT_ENCODING_HEADER)) {
+        if (httpRequest.httpHeaders.get(ACCEPT_ENCODING_HEADER).equals("gzip")) {
+          out.println(
+              "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\n\r\n");
+        }
+      }
       String pathVariable = httpRequest.uri.replace("/echo/", "");
       out.println(
           "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + pathVariable.length()
